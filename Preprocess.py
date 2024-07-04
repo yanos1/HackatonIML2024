@@ -37,6 +37,45 @@ class Preprocess:
 
         self._data.drop(columns=['significance_shared_ethnicity'])
 
+    def update_characteristic_score_self(self):
+        characteristics = ["communication_skills", "reliability",
+                           "intelligence", "creativity", "ambitious",
+                           "shared_interests"]
+
+        for char in characteristics:
+            char_importance_for_partner = f"pref_of_{char}"
+            char_grade_of_partner_of_me = f"{char}_o"
+
+            char_importance_for_me = f"{char}_important"
+            char_grade_for_partner_from_me = f"{char}_partner"
+
+            new_col_me = f"{char}_match_partner_perspective"
+            new_col_partner = f"{char}_match_my_perspective"
+
+            def calculate_match(row, x1,x2):
+                pref_value = row[x1]
+                other_value = row[x2]
+                if pref_value >= 5 and other_value >= 5:
+                    return max(pref_value, other_value)
+                elif pref_value > 6 and other_value < 5:
+                    return -max(pref_value, other_value)
+                elif pref_value < 5 and other_value > 5:
+                    return 3
+                else:
+                    return 2
+
+            self._data[new_col_me] = self._data.apply(calculate_match,
+                                                     axis=1, args=(char_importance_for_partner,char_grade_of_partner_of_me))
+            self._data[new_col_partner] = self._data.apply(calculate_match,
+                                                      axis=1, args=(
+                char_importance_for_me, char_grade_for_partner_from_me))
+            self._data.drop([char_importance_for_partner])
+            self._data.drop([char_grade_of_partner_of_me])
+            self._data.drop([char_importance_for_me])
+            self._data.drop([char_grade_for_partner_from_me])
+
+
+
     def preprocess_data(self):
         for col in self._data.select_dtypes(include=np.number).columns:
             if col != 'match':  # Skip the column named 'match'
