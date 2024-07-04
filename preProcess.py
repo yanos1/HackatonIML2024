@@ -185,6 +185,44 @@ class Preprocess:
 
         self._data.drop(columns=['significance_shared_ethnicity'], inplace=True)
 
+    def update_characteristic_score(self):
+        characteristics = ["communication_skills", "reliability",
+                           "intelligence", "creativity", "ambitious",
+                           "shared_interests"]
+
+
+        def calculate_match(row, x1, x2):
+            pref_value = row[x1]
+            other_value = row[x2]
+            if pref_value >= 5 and other_value >= 5:
+                return max(pref_value, other_value)
+            elif pref_value > 6 and other_value < 5:
+                return -max(pref_value, other_value)
+            elif pref_value < 5 and other_value > 5:
+                return 3
+            else:
+                return 2
+        for char in characteristics:
+            char_importance_for_partner = f"pref_of_{char}"
+            char_grade_of_partner_of_me = f"{char}_o"
+
+            char_importance_for_me = f"{char}_important"
+            char_grade_for_partner_from_me = f"{char}_partner"
+
+            new_col_me = f"{char}_match_partner_perspective"
+            new_col_partner = f"{char}_match_my_perspective"
+
+            self._data[new_col_me] = self._data.apply(calculate_match,
+                                                      axis=1, args=(
+                char_importance_for_partner, char_grade_of_partner_of_me))
+            self._data[new_col_partner] = self._data.apply(calculate_match,
+                                                           axis=1, args=(
+                    char_importance_for_me, char_grade_for_partner_from_me))
+            self._data.drop([char_importance_for_partner])
+            self._data.drop([char_grade_of_partner_of_me])
+            self._data.drop([char_importance_for_me])
+            self._data.drop([char_grade_for_partner_from_me])
+
     def preprocess_data(self):
         for col in self._data.select_dtypes(include=np.number).columns:
             if col != 'match':  # Skip the column named 'match'
@@ -212,6 +250,7 @@ class Preprocess:
         selector = VarianceThreshold(threshold=0.01)
         self._data = pd.DataFrame(selector.fit_transform(self._data),
                                   columns=self._data.columns[selector.get_support()])
+        self.update_characteristic_score()
 
     def correlation_analysis(self, sample_fraction=0.15, threshold=0.5):
         # Sample the data
